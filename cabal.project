@@ -11,14 +11,10 @@ repository cardano-haskell-packages
     c00aae8461a256275598500ea0e187588c35a5d5d7454fb57eac18d9edb86a56
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
--- See CONTRIBUTING in github.com/input-ouput-hk/plutus for some Nix commands
--- you will need to run if you update either of these.
-
+index-state: 2023-02-28T00:00:00Z
 index-state:
-  -- Bump this if you need newer packages from Hackage
-  , hackage.haskell.org 2023-02-20T00:20:02Z
-  -- Bump this if you need newer packages from CHaP
-  , cardano-haskell-packages 2023-11-17T04:56:26Z
+  , hackage.haskell.org 2023-02-28T00:00:00Z
+  , cardano-haskell-packages 2023-02-28T00:00:00Z
 
 packages:
   apps-compat-contractmodel,
@@ -97,13 +93,6 @@ constraints:
   , io-classes <0.3.0.0
   , typed-protocols==0.1.0.0
   , resource-pool <0.4.0.0
-
-source-repository-package
-  type: git
-  location: https://github.com/input-output-hk/quickcheck-contractmodel.git
-  tag: c5bfcc175ff5e19a764e630e5d9fe94758184a16
-  subdir:
-    quickcheck-contractmodel
 
 source-repository-package
   type: git
