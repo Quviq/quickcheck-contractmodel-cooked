@@ -98,7 +98,7 @@ constraints:
 source-repository-package
   type: git
   location: https://github.com/Quviq/cooked-validators.git
-  tag: 26f85188846e18fa8cb3b287144b637b28b7c947
+  tag: 5385108eb85a9363104b2dd91f6b7445ce04f2e5
 
 source-repository-package
   type: git
