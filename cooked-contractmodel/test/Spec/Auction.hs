@@ -45,6 +45,7 @@ data AuctionModel = AuctionModel
   , _deadline     :: SlotNo
   , _currentBid   :: Micro
   , _winner       :: Int
+  , _utxo         :: Maybe SymTxOut
   } deriving (Eq, Show, Generic)
 
 -- | The phases of the auction. Note that these are ordered such that
@@ -87,6 +88,7 @@ instance ContractModel AuctionModel where
                  , _deadline     = 0
                  , _currentBid   = 0
                  , _winner       = 0
+                 , _utxo         = Nothing
                  }
 
   -- Describe how an action (API call) moves the model state forward.
@@ -94,8 +96,10 @@ instance ContractModel AuctionModel where
   nextState Offer = do
     -- Set up the auction in the name of wallet 1
     withdraw (walletAddr $ wallet 1) (banana 1)
+    theUTxO <- createTxOut "auction utxo"
     auctionPhase .= Offered
     winner       .= 1
+    utxo         .= Just theUTxO
     wait 1
   nextState Hammer = do
     use auctionPhase >>= \case
@@ -169,28 +173,23 @@ instance ContractModel AuctionModel where
   shrinkAction _ (SetDeadline (SlotNo slt)) = [ SetDeadline (SlotNo slt') | slt' <- shrink slt ]
   shrinkAction _ _ = []
 
-type RunState = Maybe Plutus.TxOutRef
-
-initialRunState :: RunState
-initialRunState = Nothing
-
 -- | Tell us how to run an `AuctionModel` in the `SuperMockChain` - an
 -- extension of the Cooked Validator `MockChain` monad adapted to
 -- work with `QuickCheck.ContractModel`.
-instance RunModel AuctionModel (SuperMockChain RunState) where
+instance RunModel AuctionModel (SuperMockChain ()) where
   -- `perform` runs API actions by calling the off-chain code of
   -- the contract in the `SuperMockChain` monad.
   perform _ Offer _ = void $ do
     ref <- Auction.txOffer (wallet 1) (banana 1) 30_000_000
-    put $ Just ref
-  perform _ Hammer _ = void $ do
-    Just ref <- get
+    registerTxOut "auction utxo" ref
+  perform s Hammer translate = void $ do
+    let ref = translate $ s ^. utxo
     Auction.txHammer (wallet 1) ref
-  perform _ (Bid w b) _ = void $ do
-    Just ref <- get
+  perform s (Bid w b) translate = void $ do
+    let ref = translate $ s ^. utxo
     Auction.txBid (wallet w) ref (Plutus.getLovelace $ Plutus.adaOf b)
-  perform _ (SetDeadline d) _ = void $ do
-    Just ref <- get
+  perform s (SetDeadline d) translate = void $ do
+    let ref = translate $ s ^. utxo
     Auction.txSetDeadline (wallet 1) ref (Plutus.slotToBeginPOSIXTime def $ fromSlotNo d)
   perform s WaitUntilDeadline _ = void $ do
     awaitSlot (s ^. contractState . deadline)
