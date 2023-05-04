@@ -58,7 +58,9 @@ instance Monad m => MonadState s (SuperMockChainT s m) where
 
 type instance StateModel.Realized (SuperMockChainT s m) a = StateModel.Realized m a
 
-instance (DefaultRealized m, Monad m) => IsRunnable (SuperMockChainT s m) where
+instance ( DefaultRealized m
+         , Monad m
+         , HasChainIndex (SuperMockChainT s m)) => IsRunnable (SuperMockChainT s m) where
   awaitSlot slot = SuperMockChain $ void $ MockChain.awaitSlot (fromSlotNo slot)
 
 fromMockChainSt :: MockChainSt -> ChainState
@@ -74,6 +76,9 @@ instance HasChainIndex (SuperMockChain s) where
     pure $ ChainIndex { transactions = reverse txReversed
                       , networkId    = nid
                       }
+  getChainState = do
+    st <- SuperMockChain $ lift $ get
+    pure $ fromMockChainSt st
 
 instance MonadBlockChain (SuperMockChain s) where
   validateTxSkel skel = do

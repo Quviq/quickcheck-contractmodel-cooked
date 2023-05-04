@@ -14,7 +14,7 @@ repository cardano-haskell-packages
 index-state: 2023-05-01T00:00:00Z
 index-state:
   , hackage.haskell.org 2023-05-01T00:00:00Z
-  , cardano-haskell-packages 2023-05-01T00:00:00Z
+  , cardano-haskell-packages 2023-05-10T00:00:00Z
 
 packages:
   apps-compat-contractmodel,
@@ -98,7 +98,7 @@ constraints:
 source-repository-package
   type: git
   location: https://github.com/tweag/cooked-validators.git
-  tag: 0c4d1ccdf3187d8c4762be51fa73c64816e115a1
+  tag: b20ed00ebc5321368746672f60ddd0d130db7bcf
 
 source-repository-package
   type: git
@@ -110,11 +110,11 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/input-output-hk/plutus-apps.git
-  tag: 4578282f2f66c62a5f451701eca2f8f7d9d77c13
+  tag: 68c37212b76c68ab4ee566b5e27eaf4c30396671
+
   subdir:
     cardano-node-emulator
     cardano-streaming
-    doc
     freer-extras
     marconi-chain-index
     marconi-core
@@ -123,15 +123,12 @@ source-repository-package
     plutus-chain-index
     plutus-chain-index-core
     plutus-contract
-    plutus-contract-certification
     plutus-e2e-tests
     plutus-example
     plutus-ledger
     plutus-pab
-    plutus-pab-executables
     plutus-script-utils
     plutus-tx-constraints
-    plutus-use-cases
 
 -- The last update fixes some bug
 source-repository-package

@@ -2,17 +2,17 @@ module Spec.Auction where
 
 import Control.Lens hiding (elements)
 import Control.Monad.Reader
-import Control.Monad.State
 
 import Data.Default
 import Data.Fixed (Micro)
+import Data.Maybe
 
 import GHC.Generics
 
 import Cardano.Api
 import Cardano.Node.Emulator.TimeSlot qualified as Plutus
 
-import Ledger.Tx qualified as Plutus
+import Ledger.Tx.CardanoAPI qualified as Plutus
 
 import Plutus.Script.Utils.Ada qualified as Plutus
 import Plutus.V1.Ledger.Value qualified as Plutus hiding (adaSymbol, adaToken)
@@ -45,7 +45,7 @@ data AuctionModel = AuctionModel
   , _deadline     :: SlotNo
   , _currentBid   :: Micro
   , _winner       :: Int
-  , _utxo         :: Maybe SymTxOut
+  , _txIn         :: Maybe SymTxIn
   } deriving (Eq, Show, Generic)
 
 -- | The phases of the auction. Note that these are ordered such that
@@ -88,7 +88,7 @@ instance ContractModel AuctionModel where
                  , _deadline     = 0
                  , _currentBid   = 0
                  , _winner       = 0
-                 , _utxo         = Nothing
+                 , _txIn        = Nothing
                  }
 
   -- Describe how an action (API call) moves the model state forward.
@@ -96,10 +96,10 @@ instance ContractModel AuctionModel where
   nextState Offer = do
     -- Set up the auction in the name of wallet 1
     withdraw (walletAddr $ wallet 1) (banana 1)
-    theUTxO <- createTxOut "auction utxo"
+    theTxIn <- createTxIn "auction txIn"
     auctionPhase .= Offered
     winner       .= 1
-    utxo         .= Just theUTxO
+    txIn        .= Just theTxIn
     wait 1
   nextState Hammer = do
     use auctionPhase >>= \case
@@ -173,6 +173,7 @@ instance ContractModel AuctionModel where
   shrinkAction _ (SetDeadline (SlotNo slt)) = [ SetDeadline (SlotNo slt') | slt' <- shrink slt ]
   shrinkAction _ _ = []
 
+
 -- | Tell us how to run an `AuctionModel` in the `SuperMockChain` - an
 -- extension of the Cooked Validator `MockChain` monad adapted to
 -- work with `QuickCheck.ContractModel`.
@@ -181,16 +182,18 @@ instance RunModel AuctionModel (SuperMockChain ()) where
   -- the contract in the `SuperMockChain` monad.
   perform _ Offer _ = void $ do
     ref <- Auction.txOffer (wallet 1) (banana 1) 30_000_000
-    registerTxOut "auction utxo" ref
+    registerTxIn "auction txIn" (toTxIn ref)
   perform s Hammer translate = void $ do
-    let ref = translate $ s ^. utxo
-    Auction.txHammer (wallet 1) ref
+    let mref = translate <$> s ^. contractState . txIn
+    Auction.txHammer (wallet 1) (Plutus.fromCardanoTxIn $ fromJust mref)
   perform s (Bid w b) translate = void $ do
-    let ref = translate $ s ^. utxo
-    Auction.txBid (wallet w) ref (Plutus.getLovelace $ Plutus.adaOf b)
+    let mref = translate <$> s ^. contractState . txIn
+    Auction.txBid (wallet w) (Plutus.fromCardanoTxIn $ fromJust mref)
+                             (Plutus.getLovelace $ Plutus.adaOf b)
   perform s (SetDeadline d) translate = void $ do
-    let ref = translate $ s ^. utxo
-    Auction.txSetDeadline (wallet 1) ref (Plutus.slotToBeginPOSIXTime def $ fromSlotNo d)
+    let mref = translate <$> s ^. contractState . txIn
+    Auction.txSetDeadline (wallet 1) (Plutus.fromCardanoTxIn $ fromJust mref)
+                                     (Plutus.slotToBeginPOSIXTime def $ fromSlotNo d)
   perform s WaitUntilDeadline _ = void $ do
     awaitSlot (s ^. contractState . deadline)
 
@@ -206,13 +209,13 @@ instance RunModel AuctionModel (SuperMockChain ()) where
 -- predicted by the `ContractModel` instance match the balance changes produced
 -- by the `RunModel` instance - up to minimum ada requirements on UTxOs.
 prop_auction :: Actions AuctionModel -> Property
-prop_auction = propRunActions testInit initialRunState balanceChangePredicate
+prop_auction = propRunActions testInit () balanceChangePredicate
 
 -- | A standard property that runs the `doubleSatisfaction` threat
 -- model against the auction contract to check for double satisfaction
 -- vulnerabilities.
 prop_doubleSatisfaction :: Actions AuctionModel -> Property
-prop_doubleSatisfaction = propRunActions testInit initialRunState (assertThreatModel doubleSatisfaction)
+prop_doubleSatisfaction = propRunActions testInit () (assertThreatModel doubleSatisfaction)
 
 tests :: TestTree
 tests = testGroup "Auction"
